@@ -54,6 +54,14 @@ npx expo start
 
 起動後、ターミナルに表示されるQRコードを **Expo Go** アプリ（iOS/Android）でスキャンするか、`w`キーでWebブラウザ、`a`キーでAndroidエミュレータ、`i`キーでiOSシミュレータを起動できます。
 
+## スクリーンショット
+
+<!-- 画像を用意したら docs/screenshots/ に配置してください（詳細は docs/screenshots/README.md 参照） -->
+
+| ホーム画面 | 支出追加画面 | グラフ画面 |
+|---|---|---|
+| ![ホーム画面](./docs/screenshots/home.png) | ![支出追加画面](./docs/screenshots/add-expense.png) | ![グラフ画面](./docs/screenshots/graph.png) |
+
 ## プロジェクト構成
 
 - `app/` — 画面（Expo Routerのファイルベースルーティング）

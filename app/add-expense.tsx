@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ExpenseForm } from '@/components/expense-form';
+import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { addExpense, type NewExpenseInput } from '@/services/expense-storage';
 import { saveReceiptPhoto } from '@/services/receipt-photo-storage';
 
@@ -27,10 +27,12 @@ export default function AddExpenseScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <ExpenseForm onSubmit={handleSubmit} submitLabel="支出を保存" />
-      </ScrollView>
+    <>
+      <ScreenContainer edges={['bottom']} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ExpenseForm onSubmit={handleSubmit} submitLabel="支出を保存" />
+        </ScrollView>
+      </ScreenContainer>
 
       {showSuccess && (
         <View style={styles.successOverlay}>
@@ -38,7 +40,7 @@ export default function AddExpenseScreen() {
           <ThemedText style={styles.successText}>保存しました</ThemedText>
         </View>
       )}
-    </ThemedView>
+    </>
   );
 }
 

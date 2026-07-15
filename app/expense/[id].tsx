@@ -4,8 +4,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { getCategoryById } from '@/constants/categories';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -65,20 +65,20 @@ export default function ExpenseDetailScreen() {
 
   if (loaded && !expense) {
     return (
-      <ThemedView style={styles.container}>
+      <ScreenContainer edges={['bottom']} style={styles.container}>
         <ThemedText style={styles.notFound}>この支出は見つかりませんでした</ThemedText>
-      </ThemedView>
+      </ScreenContainer>
     );
   }
 
   if (!expense) {
-    return <ThemedView style={styles.container} />;
+    return <ScreenContainer edges={['bottom']} style={styles.container} />;
   }
 
   const category = getCategoryById(expense.categoryId);
 
   return (
-    <ThemedView style={styles.container}>
+    <ScreenContainer edges={['bottom']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.amountBlock}>
           <ThemedText style={styles.amount}>{formatYen(expense.amount)}</ThemedText>
@@ -124,7 +124,7 @@ export default function ExpenseDetailScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </ThemedView>
+    </ScreenContainer>
   );
 }
 

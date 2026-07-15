@@ -4,8 +4,8 @@ import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 
 import { CategoryTotalRow } from '@/components/category-total-row';
+import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { getCategoryById } from '@/constants/categories';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getExpenses } from '@/services/expense-storage';
@@ -48,7 +48,7 @@ export default function GraphScreen() {
   });
 
   return (
-    <ThemedView style={styles.container}>
+    <ScreenContainer edges={['bottom']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="title" style={styles.title}>
           カテゴリ別支出
@@ -86,7 +86,7 @@ export default function GraphScreen() {
           </>
         )}
       </ScrollView>
-    </ThemedView>
+    </ScreenContainer>
   );
 }
 

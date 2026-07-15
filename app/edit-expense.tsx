@@ -4,8 +4,8 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ExpenseForm } from '@/components/expense-form';
+import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { getExpenses, updateExpense, type NewExpenseInput } from '@/services/expense-storage';
 import { deleteReceiptPhoto, saveReceiptPhoto } from '@/services/receipt-photo-storage';
 import type { Expense } from '@/types/expense';
@@ -56,31 +56,33 @@ export default function EditExpenseScreen() {
 
   if (loaded && !expense) {
     return (
-      <ThemedView style={styles.container}>
+      <ScreenContainer edges={['bottom']} style={styles.container}>
         <ThemedText style={styles.notFound}>この支出は見つかりませんでした</ThemedText>
-      </ThemedView>
+      </ScreenContainer>
     );
   }
 
   if (!expense) {
-    return <ThemedView style={styles.container} />;
+    return <ScreenContainer edges={['bottom']} style={styles.container} />;
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <ExpenseForm
-          initialValues={{
-            amount: expense.amount,
-            date: expense.date,
-            categoryId: expense.categoryId,
-            memo: expense.memo,
-            photoUri: expense.photoUri,
-          }}
-          onSubmit={handleSubmit}
-          submitLabel="変更を保存"
-        />
-      </ScrollView>
+    <>
+      <ScreenContainer edges={['bottom']} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ExpenseForm
+            initialValues={{
+              amount: expense.amount,
+              date: expense.date,
+              categoryId: expense.categoryId,
+              memo: expense.memo,
+              photoUri: expense.photoUri,
+            }}
+            onSubmit={handleSubmit}
+            submitLabel="変更を保存"
+          />
+        </ScrollView>
+      </ScreenContainer>
 
       {showSuccess && (
         <View style={styles.successOverlay}>
@@ -88,7 +90,7 @@ export default function EditExpenseScreen() {
           <ThemedText style={styles.successText}>保存しました</ThemedText>
         </View>
       )}
-    </ThemedView>
+    </>
   );
 }
 

@@ -5,9 +5,9 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { CategoryTotalRow } from '@/components/category-total-row';
 import { ExpenseListItem } from '@/components/expense-list-item';
+import { ScreenContainer } from '@/components/screen-container';
 import { SummaryCard } from '@/components/summary-card';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getExpenses } from '@/services/expense-storage';
@@ -52,7 +52,7 @@ export default function HomeScreen() {
   const recent = getRecentExpenses(expenses, RECENT_COUNT);
 
   return (
-    <ThemedView style={styles.container}>
+    <ScreenContainer edges={['top']} style={styles.container}>
       <FlatList
         data={recent}
         keyExtractor={(item) => item.id}
@@ -112,7 +112,7 @@ export default function HomeScreen() {
         onPress={() => router.push('/add-expense')}>
         <ThemedText style={styles.addButtonLabel}>＋ 支出を追加</ThemedText>
       </Pressable>
-    </ThemedView>
+    </ScreenContainer>
   );
 }
 
