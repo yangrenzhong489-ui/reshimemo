@@ -1,0 +1,127 @@
+import { useFocusEffect } from '@react-navigation/native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+import { ExpenseForm } from '@/components/expense-form';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { getExpenses, updateExpense, type NewExpenseInput } from '@/services/expense-storage';
+import { deleteReceiptPhoto, saveReceiptPhoto } from '@/services/receipt-photo-storage';
+import type { Expense } from '@/types/expense';
+
+const SUCCESS_DISPLAY_MS = 700;
+
+export default function EditExpenseScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [expense, setExpense] = useState<Expense | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getExpenses().then((data) => {
+        if (active) {
+          setExpense(data.find((item) => item.id === id) ?? null);
+          setLoaded(true);
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, [id])
+  );
+
+  const handleSubmit = async (input: NewExpenseInput) => {
+    if (!expense) return;
+
+    // 新しい写真が選ばれた場合のみ永続領域へコピーし、元の写真が置き換え/削除された場合は古いファイルを削除する。
+    let photoUri = input.photoUri;
+    if (photoUri && photoUri !== expense.photoUri) {
+      photoUri = (await saveReceiptPhoto(photoUri)) ?? undefined;
+    }
+    if (expense.photoUri && expense.photoUri !== photoUri) {
+      deleteReceiptPhoto(expense.photoUri);
+    }
+
+    const updated = await updateExpense(expense.id, { ...input, photoUri });
+    if (!updated) {
+      throw new Error('更新に失敗しました。もう一度お試しください。');
+    }
+
+    setShowSuccess(true);
+    setTimeout(() => router.back(), SUCCESS_DISPLAY_MS);
+  };
+
+  if (loaded && !expense) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText style={styles.notFound}>この支出は見つかりませんでした</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (!expense) {
+    return <ThemedView style={styles.container} />;
+  }
+
+  return (
+    <ThemedView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ExpenseForm
+          initialValues={{
+            amount: expense.amount,
+            date: expense.date,
+            categoryId: expense.categoryId,
+            memo: expense.memo,
+            photoUri: expense.photoUri,
+          }}
+          onSubmit={handleSubmit}
+          submitLabel="変更を保存"
+        />
+      </ScrollView>
+
+      {showSuccess && (
+        <View style={styles.successOverlay}>
+          <ThemedText style={styles.successIcon}>✅</ThemedText>
+          <ThemedText style={styles.successText}>保存しました</ThemedText>
+        </View>
+      )}
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+    gap: 20,
+  },
+  notFound: {
+    textAlign: 'center',
+    marginTop: 40,
+    opacity: 0.6,
+  },
+  successOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    gap: 8,
+  },
+  successIcon: {
+    fontSize: 48,
+  },
+  successText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});
