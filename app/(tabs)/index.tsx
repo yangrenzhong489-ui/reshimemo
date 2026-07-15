@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
+import { BudgetProgress } from '@/components/budget-progress';
 import { CategoryTotalRow } from '@/components/category-total-row';
 import { ExpenseListItem } from '@/components/expense-list-item';
 import { ScreenContainer } from '@/components/screen-container';
@@ -10,6 +11,7 @@ import { SummaryCard } from '@/components/summary-card';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getBudget } from '@/services/budget-storage';
 import { getExpenses } from '@/services/expense-storage';
 import type { Expense } from '@/types/expense';
 import { todayString } from '@/utils/date';
@@ -27,14 +29,16 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const tint = Colors[colorScheme ?? 'light'].tint;
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budget, setBudgetValue] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getExpenses().then((data) => {
+      Promise.all([getExpenses(), getBudget()]).then(([expensesData, budgetValue]) => {
         if (active) {
-          setExpenses(data);
+          setExpenses(expensesData);
+          setBudgetValue(budgetValue);
           setLoaded(true);
         }
       });
@@ -82,6 +86,8 @@ export default function HomeScreen() {
               <SummaryCard label="今月の支出" amount={monthTotal} />
               <SummaryCard label="今日の支出" amount={todayTotal} />
             </View>
+
+            <BudgetProgress budget={budget} spent={monthTotal} />
 
             {categoryTotals.length > 0 && (
               <View style={styles.categorySection}>

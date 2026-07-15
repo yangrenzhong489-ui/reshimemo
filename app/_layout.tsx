@@ -22,6 +22,7 @@ export default function RootLayout() {
           <Stack.Screen name="graph" options={{ title: 'カテゴリ別グラフ' }} />
           <Stack.Screen name="expense/[id]" options={{ title: '支出の詳細' }} />
           <Stack.Screen name="edit-expense" options={{ presentation: 'modal', title: '支出を編集' }} />
+          <Stack.Screen name="set-budget" options={{ presentation: 'modal', title: '予算を設定' }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
