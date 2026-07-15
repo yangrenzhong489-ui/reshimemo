@@ -35,22 +35,24 @@ export async function getExpenses(): Promise<Expense[]> {
   return readAll();
 }
 
-export type NewExpenseInput = Omit<Expense, 'id' | 'createdAt'>;
+export type NewExpenseInput = Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>;
 
 /** 支出を1件追加する。保存に失敗した場合はnullを返す。 */
 export async function addExpense(input: NewExpenseInput): Promise<Expense | null> {
   const expenses = await readAll();
+  const now = new Date().toISOString();
   const newExpense: Expense = {
     ...input,
     id: generateId(),
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
 
   const success = await writeAll([...expenses, newExpense]);
   return success ? newExpense : null;
 }
 
-export type ExpenseUpdateInput = Partial<Omit<Expense, 'id' | 'createdAt'>>;
+export type ExpenseUpdateInput = Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>>;
 
 /** 指定IDの支出を更新する。対象が見つからない、または保存に失敗した場合はnullを返す。 */
 export async function updateExpense(id: string, updates: ExpenseUpdateInput): Promise<Expense | null> {
@@ -58,7 +60,7 @@ export async function updateExpense(id: string, updates: ExpenseUpdateInput): Pr
   const index = expenses.findIndex((expense) => expense.id === id);
   if (index === -1) return null;
 
-  const updated: Expense = { ...expenses[index], ...updates };
+  const updated: Expense = { ...expenses[index], ...updates, updatedAt: new Date().toISOString() };
   const next = [...expenses];
   next[index] = updated;
 
@@ -73,6 +75,11 @@ export async function deleteExpense(id: string): Promise<boolean> {
   if (next.length === expenses.length) return false;
 
   return writeAll(next);
+}
+
+/** 支出データを丸ごと置き換える（バックアップからの復元用）。成功した場合はtrueを返す。 */
+export async function replaceAllExpenses(expenses: Expense[]): Promise<boolean> {
+  return writeAll(expenses);
 }
 
 /** 支出データを全件削除する。成功した場合はtrueを返す。 */

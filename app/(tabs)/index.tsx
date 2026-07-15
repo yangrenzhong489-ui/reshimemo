@@ -3,8 +3,10 @@ import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
 import { BudgetProgress } from '@/components/budget-progress';
 import { CategoryTotalRow } from '@/components/category-total-row';
+import { EmptyState } from '@/components/empty-state';
 import { ExpenseListItem } from '@/components/expense-list-item';
 import { ScreenContainer } from '@/components/screen-container';
 import { SummaryCard } from '@/components/summary-card';
@@ -74,12 +76,26 @@ export default function HomeScreen() {
               <ThemedText type="title" style={styles.title}>
                 レシメモ
               </ThemedText>
-              <Pressable
-                onPress={() => router.push('/graph')}
-                hitSlop={8}
-                style={({ pressed }) => pressed && styles.pressed}>
-                <ThemedText style={[styles.graphLink, { color: tint }]}>📊 グラフ</ThemedText>
-              </Pressable>
+              <View style={styles.headerActions}>
+                <Pressable
+                  onPress={() => router.push('/graph')}
+                  hitSlop={8}
+                  style={({ pressed }) => pressed && styles.pressed}>
+                  <ThemedText style={[styles.graphLink, { color: tint }]}>📊 グラフ</ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push('/monthly-report')}
+                  hitSlop={8}
+                  style={({ pressed }) => pressed && styles.pressed}>
+                  <ThemedText style={[styles.graphLink, { color: tint }]}>📈 レポート</ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push('/settings')}
+                  hitSlop={8}
+                  style={({ pressed }) => pressed && styles.pressed}>
+                  <ThemedText style={[styles.graphLink, { color: tint }]}>⚙️ 設定</ThemedText>
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.summaryRow}>
@@ -102,22 +118,32 @@ export default function HomeScreen() {
               </View>
             )}
 
-            <ThemedText style={styles.sectionTitle}>最近の支出</ThemedText>
+            <View style={styles.recentHeaderRow}>
+              <ThemedText style={styles.sectionTitle}>最近の支出</ThemedText>
+              <Pressable
+                onPress={() => router.push('/expense-list')}
+                hitSlop={8}
+                style={({ pressed }) => pressed && styles.pressed}>
+                <ThemedText style={[styles.graphLink, { color: tint }]}>🔍 検索・絞り込み</ThemedText>
+              </Pressable>
+            </View>
           </View>
         }
         ListEmptyComponent={
-          loaded ? <ThemedText style={styles.empty}>まだ支出がありません</ThemedText> : null
+          loaded ? (
+            <EmptyState
+              title="まだ支出がありません"
+              description="「＋ 支出を追加」から最初の記録をしてみましょう"
+            />
+          ) : null
         }
       />
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.addButton,
-          { backgroundColor: tint, opacity: pressed ? 0.85 : 1 },
-        ]}
-        onPress={() => router.push('/add-expense')}>
-        <ThemedText style={styles.addButtonLabel}>＋ 支出を追加</ThemedText>
-      </Pressable>
+      <AppButton
+        label="＋ 支出を追加"
+        onPress={() => router.push('/add-expense')}
+        style={styles.addButton}
+      />
     </ScreenContainer>
   );
 }
@@ -143,6 +169,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
   },
+  headerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  recentHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   graphLink: {
     fontSize: 15,
     fontWeight: '600',
@@ -161,28 +198,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  empty: {
-    textAlign: 'center',
-    opacity: 0.6,
-    marginTop: 24,
-  },
   addButton: {
     position: 'absolute',
     left: 20,
     right: 20,
     bottom: 24,
     borderRadius: 28,
-    paddingVertical: 16,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 3,
-  },
-  addButtonLabel: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

@@ -4,9 +4,11 @@ import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 
 import { CategoryTotalRow } from '@/components/category-total-row';
+import { EmptyState } from '@/components/empty-state';
 import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
 import { getCategoryById } from '@/constants/categories';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getExpenses } from '@/services/expense-storage';
 import type { Expense } from '@/types/expense';
@@ -16,7 +18,7 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function GraphScreen() {
   const colorScheme = useColorScheme();
-  const labelColor = colorScheme === 'dark' ? '#ECEDEE' : '#11181C';
+  const labelColor = Colors[colorScheme ?? 'light'].text;
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -56,7 +58,10 @@ export default function GraphScreen() {
         <ThemedText style={styles.subtitle}>全期間の合計</ThemedText>
 
         {loaded && chartData.length === 0 && (
-          <ThemedText style={styles.empty}>まだ支出データがありません</ThemedText>
+          <EmptyState
+            title="まだ支出データがありません"
+            description="支出を追加するとグラフが表示されます"
+          />
         )}
 
         {chartData.length > 0 && (
@@ -105,11 +110,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     opacity: 0.6,
     marginBottom: 16,
-  },
-  empty: {
-    textAlign: 'center',
-    opacity: 0.6,
-    marginTop: 40,
   },
   list: {
     marginTop: 16,

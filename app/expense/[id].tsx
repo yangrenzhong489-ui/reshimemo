@@ -2,8 +2,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
+import { EmptyState } from '@/components/empty-state';
 import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
 import { getCategoryById } from '@/constants/categories';
@@ -18,8 +20,7 @@ import { formatDateLabel } from '@/utils/date';
 export default function ExpenseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colorScheme = useColorScheme();
-  const tint = Colors[colorScheme ?? 'light'].tint;
-  const borderColor = colorScheme === 'dark' ? '#3a3d3e' : '#e2e2e2';
+  const borderColor = Colors[colorScheme ?? 'light'].border;
 
   const [expense, setExpense] = useState<Expense | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -66,7 +67,7 @@ export default function ExpenseDetailScreen() {
   if (loaded && !expense) {
     return (
       <ScreenContainer edges={['bottom']} style={styles.container}>
-        <ThemedText style={styles.notFound}>この支出は見つかりませんでした</ThemedText>
+        <EmptyState title="この支出は見つかりませんでした" description="削除された可能性があります" />
       </ScreenContainer>
     );
   }
@@ -108,20 +109,16 @@ export default function ExpenseDetailScreen() {
           )}
         </View>
 
+        {expense.ocrText && (
+          <View style={[styles.row, { borderColor }]}>
+            <ThemedText style={styles.rowLabel}>OCR読み取り結果</ThemedText>
+            <ThemedText style={styles.rowValue}>{expense.ocrText}</ThemedText>
+          </View>
+        )}
+
         <View style={styles.actions}>
-          <Pressable
-            onPress={handleEdit}
-            style={({ pressed }) => [
-              styles.editButton,
-              { borderColor: tint, opacity: pressed ? 0.6 : 1 },
-            ]}>
-            <ThemedText style={[styles.editLabel, { color: tint }]}>編集する</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={handleDelete}
-            style={({ pressed }) => [styles.deleteButton, { opacity: pressed ? 0.6 : 1 }]}>
-            <ThemedText style={styles.deleteLabel}>削除する</ThemedText>
-          </Pressable>
+          <AppButton label="編集する" onPress={handleEdit} variant="primaryOutline" style={styles.actionButton} />
+          <AppButton label="削除する" onPress={handleDelete} variant="danger" style={styles.actionButton} />
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -135,11 +132,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 20,
-  },
-  notFound: {
-    textAlign: 'center',
-    marginTop: 40,
-    opacity: 0.6,
   },
   amountBlock: {
     alignItems: 'center',
@@ -189,27 +181,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 12,
   },
-  editButton: {
+  actionButton: {
     flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  editLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: '#e0245e',
-  },
-  deleteLabel: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

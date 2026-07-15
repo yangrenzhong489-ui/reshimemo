@@ -25,3 +25,14 @@ export async function setBudget(amount: number): Promise<boolean> {
     return false;
   }
 }
+
+/** 予算設定を削除する。成功した場合はtrueを返す。 */
+export async function clearBudget(): Promise<boolean> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    return true;
+  } catch (error) {
+    console.warn('[budget-storage] 予算の削除に失敗しました', error);
+    return false;
+  }
+}

@@ -25,6 +25,10 @@ export interface Expense {
   categoryId: CategoryId;
   memo?: string;
   photoUri?: string;
+  /** レシート写真からOCRで読み取ったテキスト */
+  ocrText?: string;
   /** ISO 8601形式の作成日時（並び替え用） */
   createdAt: string;
+  /** ISO 8601形式の更新日時（未編集の場合はcreatedAtと同じ） */
+  updatedAt: string;
 }

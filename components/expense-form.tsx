@@ -1,18 +1,33 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, StyleSheet, TextInput, View } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
 import { CategoryPicker } from '@/components/category-picker';
+import { CategorySuggestions } from '@/components/category-suggestions';
 import { DateStepper } from '@/components/date-stepper';
+import { OcrReader } from '@/components/ocr-reader';
+import { ReceiptExtractionPreview, type ExtractedReceiptInfo } from '@/components/receipt-extraction-preview';
 import { ReceiptPhotoPicker } from '@/components/receipt-photo-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { predictCategoryCandidates, type CategoryCandidate } from '@/services/category-prediction';
 import type { NewExpenseInput } from '@/services/expense-storage';
 import type { CategoryId } from '@/types/expense';
-import { todayString } from '@/utils/date';
+import { formatYen } from '@/utils/currency';
+import { formatDateLabel, todayString } from '@/utils/date';
+import { isAmountUnusuallyLarge, isFutureDate, validateExpenseForm } from '@/utils/validation';
 
-const ERROR_COLOR = '#e0245e';
+/** Alert.alertの「キャンセル/続行」選択をPromiseで扱えるようにするヘルパー。 */
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'キャンセル', style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmLabel, onPress: () => resolve(true) },
+    ]);
+  });
+}
 
 type ExpenseFormProps = {
   initialValues?: {
@@ -21,6 +36,7 @@ type ExpenseFormProps = {
     categoryId: CategoryId;
     memo?: string;
     photoUri?: string;
+    ocrText?: string;
   };
   onSubmit: (input: NewExpenseInput) => void | Promise<void>;
   submitLabel?: string;
@@ -28,10 +44,8 @@ type ExpenseFormProps = {
 
 export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }: ExpenseFormProps) {
   const colorScheme = useColorScheme();
-  const tint = Colors[colorScheme ?? 'light'].tint;
+  const colors = Colors[colorScheme ?? 'light'];
   const textColor = useThemeColor({}, 'text');
-  const borderColor = colorScheme === 'dark' ? '#3a3d3e' : '#e2e2e2';
-  const placeholderColor = colorScheme === 'dark' ? '#6b7280' : '#9ca3af';
 
   const [amountText, setAmountText] = useState(
     initialValues ? String(initialValues.amount) : ''
@@ -40,44 +54,56 @@ export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }:
   const [categoryId, setCategoryId] = useState<CategoryId | null>(initialValues?.categoryId ?? null);
   const [memo, setMemo] = useState(initialValues?.memo ?? '');
   const [photoUri, setPhotoUri] = useState<string | null>(initialValues?.photoUri ?? null);
+  const [ocrText, setOcrText] = useState<string | null>(initialValues?.ocrText ?? null);
+  // 新規追加時のみ自動判定を行う（既存の支出を編集する際は、既にあるカテゴリを勝手に上書きしない）。
+  const [isCategoryAutoSet, setIsCategoryAutoSet] = useState(!initialValues);
+  const [categoryCandidates, setCategoryCandidates] = useState<CategoryCandidate[]>([]);
 
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [memoError, setMemoError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    const amount = Number(amountText);
-    let hasError = false;
+    const validation = validateExpenseForm({ amountText, date, categoryId, memo });
 
-    if (!amountText.trim()) {
-      setAmountError('金額を入力してください');
-      hasError = true;
-    } else if (Number.isNaN(amount) || amount <= 0) {
-      setAmountError('金額は1円以上の数字で入力してください');
-      hasError = true;
-    } else {
-      setAmountError(null);
+    setAmountError(validation.errors.amount ?? null);
+    setDateError(validation.errors.date ?? null);
+    setCategoryError(validation.errors.category ?? null);
+    setMemoError(validation.errors.memo ?? null);
+
+    if (!validation.isValid) return;
+
+    if (isAmountUnusuallyLarge(amountText)) {
+      const confirmed = await confirmAsync(
+        '金額が高額です',
+        `${formatYen(Number(amountText))} で保存しますか？`,
+        '保存する'
+      );
+      if (!confirmed) return;
     }
 
-    if (!categoryId) {
-      setCategoryError('カテゴリを選択してください');
-      hasError = true;
-    } else {
-      setCategoryError(null);
+    if (isFutureDate(date)) {
+      const confirmed = await confirmAsync(
+        '未来の日付です',
+        `${formatDateLabel(date)} として保存しますか？`,
+        '保存する'
+      );
+      if (!confirmed) return;
     }
-
-    if (hasError) return;
 
     setSubmitError(null);
     setSubmitting(true);
     try {
       await onSubmit({
-        amount,
+        amount: Number(amountText),
         date,
         categoryId: categoryId as CategoryId,
         memo: memo.trim() ? memo.trim() : undefined,
         photoUri: photoUri ?? undefined,
+        ocrText: ocrText ?? undefined,
       });
     } catch (error) {
       setSubmitError(
@@ -88,6 +114,48 @@ export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }:
     }
   };
 
+  // メモ/OCRテキストの内容からカテゴリ候補を判定する（候補一覧は常に更新し、
+  // ユーザーがまだ手動でカテゴリを選んでいない間だけ最有力候補を自動選択する）。
+  useEffect(() => {
+    if (!memo.trim() && !ocrText) {
+      setCategoryCandidates([]);
+      return;
+    }
+
+    let active = true;
+    predictCategoryCandidates({ memo, ocrText: ocrText ?? undefined }).then((candidates) => {
+      if (!active) return;
+      setCategoryCandidates(candidates);
+      if (isCategoryAutoSet && candidates[0]) {
+        setCategoryId(candidates[0].categoryId);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [memo, ocrText, isCategoryAutoSet]);
+
+  const handleSelectCategory = (id: CategoryId) => {
+    setCategoryId(id);
+    setIsCategoryAutoSet(false);
+    if (categoryError) setCategoryError(null);
+  };
+
+  const handleApplyExtraction = (result: ExtractedReceiptInfo) => {
+    if (result.amount !== null) {
+      setAmountText(String(result.amount));
+      setAmountError(null);
+    }
+    if (result.date !== null) {
+      setDate(result.date);
+      setDateError(null);
+    }
+    if (result.storeName !== null) {
+      setMemo(result.storeName);
+      setMemoError(null);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.field}>
@@ -95,9 +163,9 @@ export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }:
         <View
           style={[
             styles.amountRow,
-            { borderColor: amountError ? ERROR_COLOR : borderColor },
+            { borderColor: amountError ? colors.danger : colors.border },
           ]}>
-          <ThemedText style={styles.yen}>¥</ThemedText>
+          <ThemedText style={[styles.yen, { color: colors.tint }]}>¥</ThemedText>
           <TextInput
             value={amountText}
             onChangeText={(text) => {
@@ -105,59 +173,102 @@ export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }:
               if (amountError) setAmountError(null);
             }}
             placeholder="0"
-            placeholderTextColor={placeholderColor}
+            placeholderTextColor={colors.placeholder}
             keyboardType="numeric"
             style={[styles.amountInput, { color: textColor }]}
           />
         </View>
-        {amountError && <ThemedText style={styles.fieldError}>⚠️ {amountError}</ThemedText>}
+        {amountError && (
+          <ThemedText style={[styles.fieldError, { color: colors.danger }]}>
+            ⚠️ {amountError}
+          </ThemedText>
+        )}
       </View>
 
       <View style={styles.field}>
         <ThemedText style={styles.label}>日付</ThemedText>
-        <DateStepper value={date} onChange={setDate} />
+        <DateStepper
+          value={date}
+          onChange={(next) => {
+            setDate(next);
+            if (dateError) setDateError(null);
+          }}
+        />
+        {dateError && (
+          <ThemedText style={[styles.fieldError, { color: colors.danger }]}>
+            ⚠️ {dateError}
+          </ThemedText>
+        )}
       </View>
 
       <View style={styles.field}>
         <ThemedText style={styles.label}>カテゴリ</ThemedText>
-        <CategoryPicker
+        {isCategoryAutoSet && categoryId !== null && (
+          <ThemedText style={styles.autoHint}>🤖 自動で選択しました（タップで変更できます）</ThemedText>
+        )}
+        <CategoryPicker selectedId={categoryId} onSelect={handleSelectCategory} />
+        <CategorySuggestions
+          candidates={categoryCandidates}
           selectedId={categoryId}
-          onSelect={(id) => {
-            setCategoryId(id);
-            if (categoryError) setCategoryError(null);
-          }}
+          onSelect={handleSelectCategory}
         />
-        {categoryError && <ThemedText style={styles.fieldError}>⚠️ {categoryError}</ThemedText>}
+        {categoryError && (
+          <ThemedText style={[styles.fieldError, { color: colors.danger }]}>
+            ⚠️ {categoryError}
+          </ThemedText>
+        )}
       </View>
 
       <View style={styles.field}>
         <ThemedText style={styles.label}>メモ（任意）</ThemedText>
         <TextInput
           value={memo}
-          onChangeText={setMemo}
+          onChangeText={(text) => {
+            setMemo(text);
+            if (memoError) setMemoError(null);
+          }}
           placeholder="例: コンビニでお弁当"
-          placeholderTextColor={placeholderColor}
-          style={[styles.memoInput, { borderColor, color: textColor }]}
+          placeholderTextColor={colors.placeholder}
+          style={[
+            styles.memoInput,
+            { borderColor: memoError ? colors.danger : colors.border, color: textColor },
+          ]}
           multiline
         />
+        {memoError && (
+          <ThemedText style={[styles.fieldError, { color: colors.danger }]}>
+            ⚠️ {memoError}
+          </ThemedText>
+        )}
       </View>
 
       <View style={styles.field}>
         <ThemedText style={styles.label}>レシート写真（任意）</ThemedText>
-        <ReceiptPhotoPicker value={photoUri} onChange={setPhotoUri} />
+        <ReceiptPhotoPicker
+          value={photoUri}
+          onChange={(uri) => {
+            setPhotoUri(uri);
+            setOcrText(null);
+          }}
+        />
       </View>
 
-      {submitError && <ThemedText style={styles.submitError}>{submitError}</ThemedText>}
+      <View style={styles.field}>
+        <ThemedText style={styles.label}>OCR読み取り（任意）</ThemedText>
+        <OcrReader photoUri={photoUri} value={ocrText} onChange={setOcrText} />
+        <ReceiptExtractionPreview ocrText={ocrText} onApply={handleApplyExtraction} />
+      </View>
 
-      <Pressable
+      {submitError && (
+        <ThemedText style={[styles.submitError, { color: colors.danger }]}>{submitError}</ThemedText>
+      )}
+
+      <AppButton
+        label={submitting ? '保存中…' : submitLabel}
         onPress={handleSubmit}
         disabled={submitting}
-        style={({ pressed }) => [
-          styles.submitButton,
-          { backgroundColor: tint, opacity: submitting || pressed ? 0.7 : 1 },
-        ]}>
-        <ThemedText style={styles.submitLabel}>{submitting ? '保存中…' : submitLabel}</ThemedText>
-      </Pressable>
+        loading={submitting}
+      />
     </View>
   );
 }
@@ -179,15 +290,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderRadius: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   yen: {
-    fontSize: 20,
+    fontSize: 24,
+    fontWeight: '700',
     marginRight: 4,
   },
   amountInput: {
     flex: 1,
-    fontSize: 24,
+    fontSize: 28,
+    fontWeight: '700',
     paddingVertical: 12,
   },
   memoInput: {
@@ -199,22 +312,14 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   fieldError: {
-    color: ERROR_COLOR,
     fontSize: 13,
   },
+  autoHint: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
   submitError: {
-    color: ERROR_COLOR,
     fontSize: 14,
     textAlign: 'center',
-  },
-  submitButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  submitLabel: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

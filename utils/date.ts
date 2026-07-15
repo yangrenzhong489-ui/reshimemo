@@ -19,6 +19,13 @@ export function addDays(dateString: string, delta: number): string {
   return toDateString(date);
 }
 
+/** 'YYYY-MM' の年月の前月を 'YYYY-MM' 形式で返す（年またぎも正しく計算する）。 */
+export function getPreviousYearMonth(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const date = new Date(year, month - 2, 1);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+}
+
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 /** 'YYYY-MM-DD' を「2026年7月15日(水)」形式の日本語表記に変換する。 */

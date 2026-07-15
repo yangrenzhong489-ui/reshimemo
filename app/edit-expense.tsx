@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { EmptyState } from '@/components/empty-state';
 import { ExpenseForm } from '@/components/expense-form';
 import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
@@ -57,7 +58,7 @@ export default function EditExpenseScreen() {
   if (loaded && !expense) {
     return (
       <ScreenContainer edges={['bottom']} style={styles.container}>
-        <ThemedText style={styles.notFound}>この支出は見つかりませんでした</ThemedText>
+        <EmptyState title="この支出は見つかりませんでした" description="削除された可能性があります" />
       </ScreenContainer>
     );
   }
@@ -77,6 +78,7 @@ export default function EditExpenseScreen() {
               categoryId: expense.categoryId,
               memo: expense.memo,
               photoUri: expense.photoUri,
+              ocrText: expense.ocrText,
             }}
             onSubmit={handleSubmit}
             submitLabel="変更を保存"
@@ -101,11 +103,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 20,
-  },
-  notFound: {
-    textAlign: 'center',
-    marginTop: 40,
-    opacity: 0.6,
   },
   successOverlay: {
     position: 'absolute',

@@ -16,8 +16,9 @@ type PickSource = 'camera' | 'library';
 
 export function ReceiptPhotoPicker({ value, onChange }: ReceiptPhotoPickerProps) {
   const colorScheme = useColorScheme();
-  const tint = Colors[colorScheme ?? 'light'].tint;
-  const borderColor = colorScheme === 'dark' ? '#3a3d3e' : '#e2e2e2';
+  const colors = Colors[colorScheme ?? 'light'];
+  const tint = colors.tint;
+  const borderColor = colors.border;
   const [loading, setLoading] = useState(false);
 
   const pickFrom = async (source: PickSource) => {

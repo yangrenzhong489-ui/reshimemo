@@ -1,29 +1,41 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * レシメモ全体の色定義。暖かみのあるオフホワイトを基調に、
+ * 通常操作は青緑系（tint）、成功はgreen、注意はamber、危険な操作はred系で統一する。
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#2A9D8F';
+const tintColorDark = '#4FC3B0';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: '#3A342C',
+    background: '#FFFBF6',
+    card: 'rgba(42, 157, 143, 0.08)',
+    border: '#EAE1D3',
+    placeholder: '#AFA290',
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: '#8A7B6C',
+    tabIconDefault: '#8A7B6C',
     tabIconSelected: tintColorLight,
+    success: '#3E9C5C',
+    warning: '#F2A93B',
+    danger: '#E0245E',
   },
   dark: {
     text: '#ECEDEE',
     background: '#151718',
+    card: 'rgba(255, 255, 255, 0.06)',
+    border: '#3A3D3E',
+    placeholder: '#6B7280',
     tint: tintColorDark,
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    success: '#4CAF50',
+    warning: '#F5A623',
+    danger: '#E0245E',
   },
 };
 
