@@ -8,6 +8,8 @@ export interface NotificationSettings {
   reminderHour: number;
   reminderMinute: number;
   budgetAlertsEnabled: boolean;
+  /** 節約ミッションのリマインダー通知（毎週月曜、reminderHour/reminderMinuteの時刻に送信）。Pro限定機能。 */
+  missionRemindersEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -15,6 +17,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   reminderHour: 20,
   reminderMinute: 0,
   budgetAlertsEnabled: true,
+  missionRemindersEnabled: false,
 };
 
 /** 通知設定を取得する。未設定・読み込み失敗時は既定値を返す。 */

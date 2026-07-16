@@ -9,6 +9,9 @@ import { getBudgetStatus, type BudgetStatus } from '@/utils/budget';
 import { todayString } from '@/utils/date';
 
 const DAILY_REMINDER_IDENTIFIER = 'daily-expense-reminder';
+const MISSION_REMINDER_IDENTIFIER = 'mission-reminder';
+/** expo-notificationsのWEEKLYトリガーは1=日曜始まりのため、月曜は2。 */
+const MISSION_REMINDER_WEEKDAY = 2;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -55,6 +58,33 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
 export async function cancelDailyReminder(): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_IDENTIFIER);
+  } catch {
+    // 予約が存在しない場合は何もしない。
+  }
+}
+
+/** 毎週月曜、決まった時刻に「節約ミッション」を確認するよう促す通知を予約する（既存の予約は置き換える）。 */
+export async function scheduleMissionReminder(hour: number, minute: number): Promise<void> {
+  await cancelMissionReminder();
+  await Notifications.scheduleNotificationAsync({
+    identifier: MISSION_REMINDER_IDENTIFIER,
+    content: {
+      title: 'レシメモ',
+      body: '🎯 今週の節約ミッションをチェックしましょう！',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: MISSION_REMINDER_WEEKDAY,
+      hour,
+      minute,
+    },
+  });
+}
+
+/** 節約ミッションのリマインダー通知の予約を取り消す。 */
+export async function cancelMissionReminder(): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(MISSION_REMINDER_IDENTIFIER);
   } catch {
     // 予約が存在しない場合は何もしない。
   }

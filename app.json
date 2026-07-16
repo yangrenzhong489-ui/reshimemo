@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -36,6 +37,12 @@
         }
       ],
       "expo-notifications",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "レシメモの支出データを保護するためにFace IDを使用します。"
+        }
+      ],
       [
         "expo-splash-screen",
         {
