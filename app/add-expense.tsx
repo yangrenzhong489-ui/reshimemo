@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ExpenseForm } from '@/components/expense-form';
 import { ScreenContainer } from '@/components/screen-container';
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { getBudget } from '@/services/budget-storage';
 import { addExpense, getExpenses, type NewExpenseInput } from '@/services/expense-storage';
 import { checkAndNotifyBudgetStatus } from '@/services/notification-service';
+import { countExpensesThisMonth, getCurrentPlan, getExpenseLimit } from '@/services/plan-service';
 import { saveReceiptPhoto } from '@/services/receipt-photo-storage';
 import { getMonthlyTotal } from '@/utils/expense-summary';
 
@@ -17,6 +18,17 @@ export default function AddExpenseScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (input: NewExpenseInput) => {
+    const [plan, existingExpenses] = await Promise.all([getCurrentPlan(), getExpenses()]);
+    const limit = getExpenseLimit(plan);
+
+    if (limit !== null && countExpensesThisMonth(existingExpenses) >= limit) {
+      Alert.alert('今月の無料記録数を使い切りました', 'Plusにすると支出記録が無制限になります。', [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'プランを見る', onPress: () => router.push('/plans') },
+      ]);
+      return;
+    }
+
     // 写真が選択されている場合は、保存時にアプリの永続領域へコピーしてからそのURIを使う。
     const photoUri = input.photoUri ? (await saveReceiptPhoto(input.photoUri)) ?? undefined : undefined;
 

@@ -1,9 +1,12 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getOcrUsageCount, incrementOcrUsageCount } from '@/services/ocr-usage-storage';
+import { getCurrentPlan, getOcrLimit } from '@/services/plan-service';
 import { recognizeTextFromImage } from '@/services/ocr-service';
 
 const ERROR_MESSAGES = {
@@ -11,6 +14,11 @@ const ERROR_MESSAGES = {
   'network-error': '通信エラーが発生しました。電波状況を確認してもう一度お試しください。',
   'api-error': '文字の読み取りに失敗しました。もう一度お試しください。',
 } as const;
+
+const PLAN_UPGRADE_HINT: Record<'free' | 'plus', string> = {
+  free: 'PlusならOCR月50回、ProならOCRをたっぷり使えます。',
+  plus: 'Proなら月200回までOCRを使えます。',
+};
 
 /** 画面が崩れないよう、読み取り結果はこの文字数までに丸める。 */
 const OCR_TEXT_MAX_LENGTH = 5000;
@@ -29,14 +37,35 @@ export function OcrReader({ photoUri, value, onChange }: OcrReaderProps) {
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
 
   const handlePress = async () => {
     if (!photoUri || loading) return;
 
     setLoading(true);
     setErrorMessage(null);
+    setLimitReached(false);
     try {
+      const plan = await getCurrentPlan();
+      const limit = getOcrLimit(plan);
+      const usageCount = await getOcrUsageCount();
+
+      if (usageCount >= limit) {
+        setLimitReached(true);
+        setErrorMessage(
+          plan === 'free'
+            ? `今月の無料OCR回数を使い切りました。${PLAN_UPGRADE_HINT.free}`
+            : plan === 'plus'
+              ? `今月のOCR回数（${limit}回）を使い切りました。${PLAN_UPGRADE_HINT.plus}`
+              : `今月のOCR回数（${limit}回）を使い切りました。`
+        );
+        return;
+      }
+
       const result = await recognizeTextFromImage(photoUri);
+      if (result.success || result.reason !== 'no-api-key') {
+        await incrementOcrUsageCount();
+      }
 
       if (result.success) {
         onChange(result.text.slice(0, OCR_TEXT_MAX_LENGTH));
@@ -82,6 +111,12 @@ export function OcrReader({ photoUri, value, onChange }: OcrReaderProps) {
         <ThemedText style={[styles.errorText, { color: colors.danger }]}>⚠️ {errorMessage}</ThemedText>
       )}
 
+      {limitReached && (
+        <Pressable onPress={() => router.push('/plans')} hitSlop={8}>
+          <ThemedText style={[styles.upgradeLink, { color: tint }]}>✨ プランを見る</ThemedText>
+        </Pressable>
+      )}
+
       {value && (
         <View style={[styles.resultBlock, { borderColor }]}>
           <ThemedText style={styles.resultLabel}>読み取ったテキスト</ThemedText>
@@ -116,6 +151,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
+  },
+  upgradeLink: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   resultBlock: {
     borderWidth: 1,

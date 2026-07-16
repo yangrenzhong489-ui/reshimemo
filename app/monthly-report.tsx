@@ -8,30 +8,40 @@ import { EmptyState } from '@/components/empty-state';
 import { ScreenContainer } from '@/components/screen-container';
 import { SummaryCard } from '@/components/summary-card';
 import { ThemedText } from '@/components/themed-text';
+import { WasteCheckCard } from '@/components/waste-check-card';
 import { getCategoryById } from '@/constants/categories';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getBudget } from '@/services/budget-storage';
 import { getExpenses } from '@/services/expense-storage';
+import { canUseProFeature, getCurrentPlan } from '@/services/plan-service';
 import type { Expense } from '@/types/expense';
 import { formatYen } from '@/utils/currency';
 import { formatDateLabel } from '@/utils/date';
 import { buildMonthlyReport } from '@/utils/monthly-report';
+import { buildWasteCheck } from '@/utils/waste-detection';
 
 export default function MonthlyReportScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budget, setBudgetValue] = useState<number | null>(null);
+  const [isProUser, setIsProUser] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getExpenses().then((data) => {
-        if (active) {
-          setExpenses(data);
-          setLoaded(true);
+      Promise.all([getExpenses(), getBudget(), getCurrentPlan()]).then(
+        ([expensesData, budgetValue, plan]) => {
+          if (active) {
+            setExpenses(expensesData);
+            setBudgetValue(budgetValue);
+            setIsProUser(canUseProFeature(plan));
+            setLoaded(true);
+          }
         }
-      });
+      );
       return () => {
         active = false;
       };
@@ -39,6 +49,7 @@ export default function MonthlyReportScreen() {
   );
 
   const report = buildMonthlyReport(expenses);
+  const wasteCheck = buildWasteCheck(expenses, report.yearMonth, budget);
 
   if (loaded && report.expenseCount === 0) {
     return (
@@ -79,6 +90,8 @@ export default function MonthlyReportScreen() {
             {changeIcon} {changeLabel}
           </ThemedText>
         </Card>
+
+        <WasteCheckCard result={wasteCheck} isProUser={isProUser} />
 
         <View style={styles.statRow}>
           <View style={styles.statBlock}>

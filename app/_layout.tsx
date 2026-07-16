@@ -51,6 +51,7 @@ export default function RootLayout() {
           <Stack.Screen name="expense-list" options={{ title: '支出を検索' }} />
           <Stack.Screen name="monthly-report" options={{ title: '月別レポート' }} />
           <Stack.Screen name="settings" options={{ title: '設定' }} />
+          <Stack.Screen name="plans" options={{ title: 'プラン' }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

@@ -1,12 +1,14 @@
+import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { ScreenContainer } from '@/components/screen-container';
 import { SettingsRow } from '@/components/settings-row';
 import { ThemedText } from '@/components/themed-text';
 import { TimeStepper } from '@/components/time-stepper';
+import { PLANS, type PlanId } from '@/constants/plans';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCsvExport } from '@/hooks/use-csv-export';
@@ -24,9 +26,17 @@ import {
   saveNotificationSettings,
   type NotificationSettings,
 } from '@/services/notification-settings-storage';
+import { canUseBackup, canUseCsvExport, getCurrentPlan } from '@/services/plan-service';
 import { deleteReceiptPhoto } from '@/services/receipt-photo-storage';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+
+function goToPlans(title: string, message: string) {
+  Alert.alert(title, message, [
+    { text: 'キャンセル', style: 'cancel' },
+    { text: 'プランを見る', onPress: () => router.push('/plans') },
+  ]);
+}
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -36,12 +46,25 @@ export default function SettingsScreen() {
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<PlanId>('free');
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
 
   useEffect(() => {
     getNotificationSettings().then(setNotificationSettings);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getCurrentPlan().then((plan) => {
+        if (active) setCurrentPlan(plan);
+      });
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   const ensureNotificationPermission = async (): Promise<boolean> => {
     const status = await getNotificationPermissionStatus();
@@ -105,6 +128,11 @@ export default function SettingsScreen() {
   const handleBackup = async () => {
     if (backingUp) return;
 
+    if (!canUseBackup(currentPlan)) {
+      goToPlans('バックアップ・復元はPlus以上で利用できます', '');
+      return;
+    }
+
     setBackingUp(true);
     try {
       const result = await exportBackup();
@@ -130,6 +158,11 @@ export default function SettingsScreen() {
 
   const handleRestore = () => {
     if (restoring) return;
+
+    if (!canUseBackup(currentPlan)) {
+      goToPlans('バックアップ・復元はPlus以上で利用できます', '');
+      return;
+    }
 
     Alert.alert(
       '現在のデータを上書きしますか？',
@@ -165,6 +198,14 @@ export default function SettingsScreen() {
     } finally {
       setRestoring(false);
     }
+  };
+
+  const handlePressCsvExport = () => {
+    if (!canUseCsvExport(currentPlan)) {
+      goToPlans('CSV出力はPlus以上で利用できます', '');
+      return;
+    }
+    handleExportCsv();
   };
 
   const handleDeleteAll = () => {
@@ -243,8 +284,17 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>プラン</ThemedText>
+          <SettingsRow
+            icon="✨"
+            label={`プランを見る（現在: ${PLANS.find((p) => p.id === currentPlan)?.label ?? 'Free'}）`}
+            onPress={() => router.push('/plans')}
+          />
+        </View>
+
+        <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>データ管理</ThemedText>
-          <SettingsRow icon="📄" label="CSV出力" loading={exporting} onPress={handleExportCsv} />
+          <SettingsRow icon="📄" label="CSV出力" loading={exporting} onPress={handlePressCsvExport} />
           <SettingsRow
             icon="💾"
             label="データをバックアップ"

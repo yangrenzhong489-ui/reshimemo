@@ -8,6 +8,8 @@ import { BudgetProgress } from '@/components/budget-progress';
 import { CategoryTotalRow } from '@/components/category-total-row';
 import { EmptyState } from '@/components/empty-state';
 import { ExpenseListItem } from '@/components/expense-list-item';
+import { ProPromoBanner } from '@/components/pro-promo-banner';
+import { SavingMissionCard } from '@/components/saving-mission-card';
 import { ScreenContainer } from '@/components/screen-container';
 import { SummaryCard } from '@/components/summary-card';
 import { ThemedText } from '@/components/themed-text';
@@ -104,6 +106,10 @@ export default function HomeScreen() {
             </View>
 
             <BudgetProgress budget={budget} spent={monthTotal} />
+
+            <ProPromoBanner />
+
+            <SavingMissionCard />
 
             {categoryTotals.length > 0 && (
               <View style={styles.categorySection}>

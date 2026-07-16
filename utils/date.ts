@@ -26,6 +26,17 @@ export function getPreviousYearMonth(yearMonth: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 }
 
+/** 'YYYY-MM-DD' が属する週（月曜始まり）の開始日・終了日を返す。 */
+export function getWeekRange(dateString: string = todayString()): { start: string; end: string } {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const start = addDays(dateString, diffToMonday);
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 /** 'YYYY-MM-DD' を「2026年7月15日(水)」形式の日本語表記に変換する。 */
