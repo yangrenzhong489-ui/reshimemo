@@ -6,6 +6,7 @@ import { Card } from '@/components/card';
 import { CategoryTotalRow } from '@/components/category-total-row';
 import { EmptyState } from '@/components/empty-state';
 import { ScreenContainer } from '@/components/screen-container';
+import { ShoppingPatternCard } from '@/components/shopping-pattern-card';
 import { SummaryCard } from '@/components/summary-card';
 import { ThemedText } from '@/components/themed-text';
 import { WasteCheckCard } from '@/components/waste-check-card';
@@ -19,6 +20,7 @@ import type { Expense } from '@/types/expense';
 import { formatYen } from '@/utils/currency';
 import { formatDateLabel } from '@/utils/date';
 import { buildMonthlyReport } from '@/utils/monthly-report';
+import { analyzeShoppingPattern } from '@/utils/shopping-pattern-analysis';
 import { buildWasteCheck } from '@/utils/waste-detection';
 
 export default function MonthlyReportScreen() {
@@ -50,6 +52,7 @@ export default function MonthlyReportScreen() {
 
   const report = buildMonthlyReport(expenses);
   const wasteCheck = buildWasteCheck(expenses, report.yearMonth, budget);
+  const shoppingPattern = analyzeShoppingPattern(expenses, report.yearMonth);
 
   if (loaded && report.expenseCount === 0) {
     return (
@@ -92,6 +95,8 @@ export default function MonthlyReportScreen() {
         </Card>
 
         <WasteCheckCard result={wasteCheck} isProUser={isProUser} />
+
+        <ShoppingPatternCard result={shoppingPattern} isProUser={isProUser} />
 
         <View style={styles.statRow}>
           <View style={styles.statBlock}>

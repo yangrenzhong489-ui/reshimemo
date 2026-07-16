@@ -10,6 +10,12 @@ const MIN_INCREASE_AMOUNT = 500;
 const MAX_STORE_INSIGHTS = 3;
 /** 予算に対する使用率がこの割合を超えたら「近づいている」とみなす（budget-progressのcaution判定と合わせる）。 */
 const BUDGET_NEAR_RATIO = 0.8;
+/** 曜日別の支出が突出していると判定する、平均に対する倍率（Pro限定の詳細分析）。 */
+const WEEKDAY_CONCENTRATION_RATIO = 1.5;
+/** 曜日別分析を行うために必要な、今月の最低支出件数。 */
+const MIN_EXPENSE_COUNT_FOR_WEEKDAY_INSIGHT = 8;
+
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 
 export type WasteInsightLevel = 'warning' | 'notice' | 'positive';
 
@@ -35,6 +41,13 @@ export interface StoreChange {
   difference: number;
 }
 
+export interface WeekdaySpending {
+  /** 0=日, 1=月, ..., 6=土 */
+  weekday: number;
+  label: string;
+  total: number;
+}
+
 export interface WasteCheckResult {
   yearMonth: string;
   monthTotal: number;
@@ -47,6 +60,8 @@ export interface WasteCheckResult {
   topWarningCategory: CategoryChange | null;
   /** 前月より増えている店名（メモ）（増加額が大きい順）。 */
   increasedStores: StoreChange[];
+  /** 今月最も支出が集中している曜日（Pro限定の詳細分析）。突出していない場合はnull。 */
+  topWeekday: WeekdaySpending | null;
   insights: WasteInsight[];
 }
 
@@ -98,12 +113,35 @@ function buildStoreChanges(
     .sort((a, b) => b.difference - a.difference);
 }
 
+/** 今月の支出が特定の曜日に偏っている場合、その曜日を返す（Pro限定の詳細分析用）。偏りが小さい場合はnull。 */
+function findTopWeekday(monthExpenses: Expense[]): WeekdaySpending | null {
+  if (monthExpenses.length < MIN_EXPENSE_COUNT_FOR_WEEKDAY_INSIGHT) return null;
+
+  const totals = new Map<number, number>();
+  for (const expense of monthExpenses) {
+    const [year, month, day] = expense.date.split('-').map(Number);
+    const weekday = new Date(year, month - 1, day).getDay();
+    totals.set(weekday, (totals.get(weekday) ?? 0) + expense.amount);
+  }
+  if (totals.size < 2) return null;
+
+  const entries = Array.from(totals.entries());
+  const monthTotal = entries.reduce((sum, [, total]) => sum + total, 0);
+  const average = monthTotal / entries.length;
+
+  const [topWeekday, topTotal] = entries.sort((a, b) => b[1] - a[1])[0];
+  if (average <= 0 || topTotal < average * WEEKDAY_CONCENTRATION_RATIO) return null;
+
+  return { weekday: topWeekday, label: WEEKDAY_LABELS[topWeekday], total: topTotal };
+}
+
 function buildInsights(params: {
   monthTotal: number;
   previousMonthTotal: number;
   increasedCategories: CategoryChange[];
   topWarningCategory: CategoryChange | null;
   increasedStores: StoreChange[];
+  topWeekday: WeekdaySpending | null;
   budget: number | null;
 }): WasteInsight[] {
   const {
@@ -112,6 +150,7 @@ function buildInsights(params: {
     increasedCategories,
     topWarningCategory,
     increasedStores,
+    topWeekday,
     budget,
   } = params;
   const insights: WasteInsight[] = [];
@@ -129,6 +168,13 @@ function buildInsights(params: {
     insights.push({
       level: 'notice',
       message: `${change.storeName}での支出が増えています。`,
+    });
+  }
+
+  if (topWeekday) {
+    insights.push({
+      level: 'notice',
+      message: `${topWeekday.label}曜日に支出が集中しています（今月${formatYen(topWeekday.total)}）。`,
     });
   }
 
@@ -192,6 +238,7 @@ export function buildWasteCheck(
   const increasedCategories = categoryChanges.filter((c) => c.difference >= MIN_INCREASE_AMOUNT);
   const topWarningCategory = increasedCategories[0] ?? null;
   const increasedStores = buildStoreChanges(monthExpenses, previousMonthExpenses);
+  const topWeekday = findTopWeekday(monthExpenses);
 
   const insights = hasComparableData
     ? buildInsights({
@@ -200,6 +247,7 @@ export function buildWasteCheck(
         increasedCategories,
         topWarningCategory,
         increasedStores,
+        topWeekday,
         budget,
       })
     : [];
@@ -212,6 +260,7 @@ export function buildWasteCheck(
     increasedCategories,
     topWarningCategory,
     increasedStores,
+    topWeekday,
     insights,
   };
 }

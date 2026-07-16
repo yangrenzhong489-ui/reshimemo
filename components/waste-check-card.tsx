@@ -68,12 +68,19 @@ export function WasteCheckCard({ result, isProUser }: WasteCheckCardProps) {
 
       {!isProUser && result.hasComparableData && (
         <View style={styles.upsell}>
+          <ThemedText style={styles.upsellTitle}>🔒 ムダ買いチェックはPro限定機能です。</ThemedText>
           <ThemedText style={styles.upsellText}>
-            🔒 ムダ買い分析はPro限定機能です。
-            {hiddenCount > 0 ? `他に${hiddenCount}件のヒントがあります。` : ''}
-            Proなら、ムダ買いに気づいて自然に節約できます。
+            Proなら、今月と先月の支出を比較して、増えているカテゴリやお店を自動でお知らせします。{'\n'}
+            なんとなく使いすぎた、を、ここを減らせばいい、に変えましょう。
           </ThemedText>
-          <AppButton label="✨ プランを見る" onPress={() => router.push('/plans')} />
+          <ThemedText style={styles.upsellText}>
+            {hiddenCount > 0 ? `他に${hiddenCount}件のヒントを含め、` : ''}
+            Proなら、増えたカテゴリ・お店・曜日まで詳しく確認できます。
+          </ThemedText>
+          <AppButton
+            label="🔓 Proで詳しいムダ買い分析を解放"
+            onPress={() => router.push('/plans')}
+          />
         </View>
       )}
     </Card>
@@ -110,7 +117,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   upsell: {
-    gap: 10,
+    gap: 8,
+  },
+  upsellTitle: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   upsellText: {
     fontSize: 13,

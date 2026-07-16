@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "PowerShell(npx tsc --noEmit)",
-      "PowerShell(winget install *)"
+      "PowerShell(winget install *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
