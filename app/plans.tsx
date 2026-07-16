@@ -46,6 +46,10 @@ export default function PlansScreen() {
     setCurrentPlan(planId);
   };
 
+  // Plus/Proの実課金（IAP）は未実装のため、公開ビルドでは切り替えボタン自体を「近日公開」表示にして無効化する。
+  // 開発ビルド（__DEV__）のみ、QA用にローカルのデモ切り替えを残す。
+  const isDemoPlanSwitchEnabled = __DEV__;
+
   const handleSelectPlan = (plan: Plan) => {
     if (plan.id === currentPlan) {
       router.back();
@@ -53,23 +57,15 @@ export default function PlansScreen() {
     }
 
     if (plan.id === 'free') {
-      Alert.alert(
-        'デモとして無料プランに戻しますか？',
-        '実際の解約処理ではなく、動作確認用の切り替えです。',
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '無料プランに戻す',
-            onPress: () => switchToDemoPlan('free'),
-          },
-        ]
-      );
+      switchToDemoPlan('free');
       return;
     }
 
+    if (!isDemoPlanSwitchEnabled) return;
+
     purchasePlan(plan.id, cycle).then(() => {
       Alert.alert(
-        '現在はデモです',
+        '【開発ビルド限定】デモ切り替え',
         '課金処理は未実装です。動作確認のため、デモとしてこのプランに切り替えますか？（実際の購入ではありません）',
         [
           { text: 'キャンセル', style: 'cancel' },
@@ -92,7 +88,8 @@ export default function PlansScreen() {
             ムダ買いに気づいて、自然に節約できる家計簿。
           </ThemedText>
           <ThemedText style={styles.currentPlanText}>
-            現在のプラン: {PLANS.find((p) => p.id === currentPlan)?.label ?? 'Free'}（デモ）
+            現在のプラン: {PLANS.find((p) => p.id === currentPlan)?.label ?? 'Free'}
+            {isDemoPlanSwitchEnabled ? '（開発ビルド用デモ）' : ''}
           </ThemedText>
         </View>
 
@@ -176,9 +173,17 @@ export default function PlansScreen() {
               </View>
 
               <AppButton
-                label={plan.id === currentPlan ? '現在のプランです' : plan.ctaLabel}
+                label={
+                  plan.id === currentPlan
+                    ? '現在のプランです'
+                    : plan.id !== 'free' && !isDemoPlanSwitchEnabled
+                      ? '近日公開'
+                      : plan.ctaLabel
+                }
                 variant={plan.recommended ? 'primary' : 'primaryOutline'}
-                disabled={plan.id === currentPlan}
+                disabled={
+                  plan.id === currentPlan || (plan.id !== 'free' && !isDemoPlanSwitchEnabled)
+                }
                 onPress={() => handleSelectPlan(plan)}
               />
             </Card>
@@ -186,7 +191,9 @@ export default function PlansScreen() {
         })}
 
         <ThemedText style={styles.footnote}>
-          価格はすべて税込です。プランはいつでも変更・解約できます。
+          {isDemoPlanSwitchEnabled
+            ? '価格はすべて税込です。プランはいつでも変更・解約できます。'
+            : '価格はすべて税込の予定価格です。Plus/Proは近日公開予定で、公開後にApp Store課金でご利用いただけるようになります。'}
         </ThemedText>
       </ScrollView>
     </ScreenContainer>

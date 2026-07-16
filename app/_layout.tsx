@@ -89,7 +89,7 @@ export default function RootLayout() {
         {isLocked ? (
           <AppLockScreen onUnlock={() => setIsLocked(false)} />
         ) : (
-          <Stack>
+          <Stack screenOptions={{ headerBackTitle: '戻る' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="add-expense" options={{ presentation: 'modal', title: '支出を追加' }} />
             <Stack.Screen name="graph" options={{ title: 'カテゴリ別グラフ' }} />
