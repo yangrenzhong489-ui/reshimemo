@@ -17,6 +17,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getBudget } from '@/services/budget-storage';
 import { getExpenses } from '@/services/expense-storage';
+import { canUseProFeature, getCurrentPlan } from '@/services/plan-service';
 import type { Expense } from '@/types/expense';
 import { todayString } from '@/utils/date';
 import {
@@ -34,18 +35,22 @@ export default function HomeScreen() {
   const tint = Colors[colorScheme ?? 'light'].tint;
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budget, setBudgetValue] = useState<number | null>(null);
+  const [isProUser, setIsProUser] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([getExpenses(), getBudget()]).then(([expensesData, budgetValue]) => {
-        if (active) {
-          setExpenses(expensesData);
-          setBudgetValue(budgetValue);
-          setLoaded(true);
+      Promise.all([getExpenses(), getBudget(), getCurrentPlan()]).then(
+        ([expensesData, budgetValue, plan]) => {
+          if (active) {
+            setExpenses(expensesData);
+            setBudgetValue(budgetValue);
+            setIsProUser(canUseProFeature(plan));
+            setLoaded(true);
+          }
         }
-      });
+      );
       return () => {
         active = false;
       };
@@ -107,7 +112,7 @@ export default function HomeScreen() {
 
             <BudgetProgress budget={budget} spent={monthTotal} />
 
-            <ProPromoBanner />
+            {!isProUser && <ProPromoBanner />}
 
             <SavingMissionCard />
 

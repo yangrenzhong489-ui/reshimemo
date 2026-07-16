@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { Card } from '@/components/card';
 import { CategoryTotalRow } from '@/components/category-total-row';
 import { EmptyState } from '@/components/empty-state';
+import { PurchaseFrequencyCard } from '@/components/purchase-frequency-card';
 import { ScreenContainer } from '@/components/screen-container';
 import { ShoppingPatternCard } from '@/components/shopping-pattern-card';
 import { SummaryCard } from '@/components/summary-card';
@@ -20,6 +21,7 @@ import type { Expense } from '@/types/expense';
 import { formatYen } from '@/utils/currency';
 import { formatDateLabel } from '@/utils/date';
 import { buildMonthlyReport } from '@/utils/monthly-report';
+import { analyzePurchaseFrequency } from '@/utils/purchase-frequency-ranking';
 import { analyzeShoppingPattern } from '@/utils/shopping-pattern-analysis';
 import { buildWasteCheck } from '@/utils/waste-detection';
 
@@ -53,6 +55,7 @@ export default function MonthlyReportScreen() {
   const report = buildMonthlyReport(expenses);
   const wasteCheck = buildWasteCheck(expenses, report.yearMonth, budget);
   const shoppingPattern = analyzeShoppingPattern(expenses, report.yearMonth);
+  const purchaseFrequency = analyzePurchaseFrequency(expenses, report.yearMonth);
 
   if (loaded && report.expenseCount === 0) {
     return (
@@ -97,6 +100,8 @@ export default function MonthlyReportScreen() {
         <WasteCheckCard result={wasteCheck} isProUser={isProUser} />
 
         <ShoppingPatternCard result={shoppingPattern} isProUser={isProUser} />
+
+        <PurchaseFrequencyCard result={purchaseFrequency} isProUser={isProUser} />
 
         <View style={styles.statRow}>
           <View style={styles.statBlock}>
