@@ -6,11 +6,16 @@ const CSV_HEADERS = ['日付', '金額', 'カテゴリ', 'メモ', 'レシート
 /** ExcelでCSVを開いたときに文字化けしないようにするためのBOM。 */
 const BOM = '﻿';
 
+/** '='や'+'などで始まる値は、Excel等で開いた際に数式として実行されうる（CSVインジェクション）ため無害化する。 */
+const FORMULA_TRIGGER_PATTERN = /^[=+\-@\t\r]/;
+
 function escapeCsvField(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const sanitized = FORMULA_TRIGGER_PATTERN.test(value) ? `'${value}` : value;
+
+  if (/[",\n]/.test(sanitized)) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
   }
-  return value;
+  return sanitized;
 }
 
 /** 支出データをCSV形式の文字列に変換する。 */

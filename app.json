@@ -35,6 +35,7 @@
           "microphonePermission": false
         }
       ],
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

@@ -1,24 +1,106 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { ScreenContainer } from '@/components/screen-container';
 import { SettingsRow } from '@/components/settings-row';
 import { ThemedText } from '@/components/themed-text';
+import { TimeStepper } from '@/components/time-stepper';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCsvExport } from '@/hooks/use-csv-export';
 import { exportBackup, pickAndRestoreBackup } from '@/services/backup-service';
 import { clearBudget } from '@/services/budget-storage';
 import { clearAllExpenses, getExpenses } from '@/services/expense-storage';
+import {
+  cancelDailyReminder,
+  getNotificationPermissionStatus,
+  requestNotificationPermission,
+  scheduleDailyReminder,
+} from '@/services/notification-service';
+import {
+  getNotificationSettings,
+  saveNotificationSettings,
+  type NotificationSettings,
+} from '@/services/notification-settings-storage';
 import { deleteReceiptPhoto } from '@/services/receipt-photo-storage';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 export default function SettingsScreen() {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
   const { exporting, handleExportCsv } = useCsvExport();
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+
+  useEffect(() => {
+    getNotificationSettings().then(setNotificationSettings);
+  }, []);
+
+  const ensureNotificationPermission = async (): Promise<boolean> => {
+    const status = await getNotificationPermissionStatus();
+    if (status === 'granted') return true;
+
+    const granted = await requestNotificationPermission();
+    if (granted) return true;
+
+    Alert.alert(
+      '通知を利用できません',
+      '通知の許可がオフになっています。端末の設定アプリからレシメモの通知を許可してください。'
+    );
+    return false;
+  };
+
+  const updateNotificationSettings = async (next: NotificationSettings) => {
+    setNotificationSettings(next);
+    await saveNotificationSettings(next);
+  };
+
+  const handleToggleDailyReminder = async (value: boolean) => {
+    if (!notificationSettings) return;
+
+    if (value) {
+      const granted = await ensureNotificationPermission();
+      if (!granted) return;
+    }
+
+    const next = { ...notificationSettings, dailyReminderEnabled: value };
+    await updateNotificationSettings(next);
+
+    if (value) {
+      await scheduleDailyReminder(next.reminderHour, next.reminderMinute);
+    } else {
+      await cancelDailyReminder();
+    }
+  };
+
+  const handleChangeReminderTime = async (hour: number, minute: number) => {
+    if (!notificationSettings) return;
+
+    const next = { ...notificationSettings, reminderHour: hour, reminderMinute: minute };
+    await updateNotificationSettings(next);
+
+    if (next.dailyReminderEnabled) {
+      await scheduleDailyReminder(hour, minute);
+    }
+  };
+
+  const handleToggleBudgetAlerts = async (value: boolean) => {
+    if (!notificationSettings) return;
+
+    if (value) {
+      const granted = await ensureNotificationPermission();
+      if (!granted) return;
+    }
+
+    await updateNotificationSettings({ ...notificationSettings, budgetAlertsEnabled: value });
+  };
 
   const handleBackup = async () => {
     if (backingUp) return;
@@ -125,25 +207,51 @@ export default function SettingsScreen() {
     <ScreenContainer edges={['bottom']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>通知</ThemedText>
+
+          <View style={[styles.toggleRow, { borderColor: colors.border }]}>
+            <ThemedText style={styles.toggleLabel}>毎日のリマインダー</ThemedText>
+            <Switch
+              value={notificationSettings?.dailyReminderEnabled ?? false}
+              onValueChange={handleToggleDailyReminder}
+              disabled={!notificationSettings}
+            />
+          </View>
+
+          {notificationSettings?.dailyReminderEnabled && (
+            <View style={[styles.timeRow, { borderColor: colors.border }]}>
+              <ThemedText style={styles.toggleLabel}>通知時刻</ThemedText>
+              <TimeStepper
+                hour={notificationSettings.reminderHour}
+                minute={notificationSettings.reminderMinute}
+                onChange={handleChangeReminderTime}
+              />
+            </View>
+          )}
+
+          <View style={[styles.toggleRow, { borderColor: colors.border }]}>
+            <ThemedText style={styles.toggleLabel}>予算超過の通知</ThemedText>
+            <Switch
+              value={notificationSettings?.budgetAlertsEnabled ?? false}
+              onValueChange={handleToggleBudgetAlerts}
+              disabled={!notificationSettings}
+            />
+          </View>
+          <ThemedText style={styles.hintText}>
+            今月の支出が予算の80%・100%を超えたタイミングで通知します。
+          </ThemedText>
+        </View>
+
+        <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>データ管理</ThemedText>
-          <SettingsRow
-            icon="📄"
-            label="CSV出力"
-            loading={exporting}
-            onPress={handleExportCsv}
-          />
+          <SettingsRow icon="📄" label="CSV出力" loading={exporting} onPress={handleExportCsv} />
           <SettingsRow
             icon="💾"
             label="データをバックアップ"
             loading={backingUp}
             onPress={handleBackup}
           />
-          <SettingsRow
-            icon="📥"
-            label="データを復元"
-            loading={restoring}
-            onPress={handleRestore}
-          />
+          <SettingsRow icon="📥" label="データを復元" loading={restoring} onPress={handleRestore} />
           <SettingsRow icon="🎯" label="予算を設定" onPress={() => router.push('/set-budget')} />
         </View>
 
@@ -184,6 +292,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     opacity: 0.6,
     marginBottom: 4,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  hintText: {
+    fontSize: 12,
+    opacity: 0.6,
+    marginTop: 8,
+    lineHeight: 18,
   },
   appInfoSection: {
     alignItems: 'center',

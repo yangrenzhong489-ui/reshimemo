@@ -116,6 +116,7 @@ export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }:
 
   // メモ/OCRテキストの内容からカテゴリ候補を判定する（候補一覧は常に更新し、
   // ユーザーがまだ手動でカテゴリを選んでいない間だけ最有力候補を自動選択する）。
+  // 判定は過去の支出データを読み込むため、入力中に毎回実行しないよう少し待ってから行う。
   useEffect(() => {
     if (!memo.trim() && !ocrText) {
       setCategoryCandidates([]);
@@ -123,15 +124,19 @@ export function ExpenseForm({ initialValues, onSubmit, submitLabel = '保存' }:
     }
 
     let active = true;
-    predictCategoryCandidates({ memo, ocrText: ocrText ?? undefined }).then((candidates) => {
-      if (!active) return;
-      setCategoryCandidates(candidates);
-      if (isCategoryAutoSet && candidates[0]) {
-        setCategoryId(candidates[0].categoryId);
-      }
-    });
+    const timeoutId = setTimeout(() => {
+      predictCategoryCandidates({ memo, ocrText: ocrText ?? undefined }).then((candidates) => {
+        if (!active) return;
+        setCategoryCandidates(candidates);
+        if (isCategoryAutoSet && candidates[0]) {
+          setCategoryId(candidates[0].categoryId);
+        }
+      });
+    }, 400);
+
     return () => {
       active = false;
+      clearTimeout(timeoutId);
     };
   }, [memo, ocrText, isCategoryAutoSet]);
 

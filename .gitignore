@@ -35,6 +35,10 @@ yarn-error.*
 .env*.local
 !.env.example
 
+# 誤って書き出したバックアップ/CSVファイルがコミットされないように
+reshimemo-backup-*.json
+reshimemo-expenses.csv
+
 # typescript
 *.tsbuildinfo
 

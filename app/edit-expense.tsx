@@ -7,9 +7,12 @@ import { EmptyState } from '@/components/empty-state';
 import { ExpenseForm } from '@/components/expense-form';
 import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
+import { getBudget } from '@/services/budget-storage';
 import { getExpenses, updateExpense, type NewExpenseInput } from '@/services/expense-storage';
+import { checkAndNotifyBudgetStatus } from '@/services/notification-service';
 import { deleteReceiptPhoto, saveReceiptPhoto } from '@/services/receipt-photo-storage';
 import type { Expense } from '@/types/expense';
+import { getMonthlyTotal } from '@/utils/expense-summary';
 
 const SUCCESS_DISPLAY_MS = 700;
 
@@ -50,6 +53,9 @@ export default function EditExpenseScreen() {
     if (!updated) {
       throw new Error('更新に失敗しました。もう一度お試しください。');
     }
+
+    const [expenses, budget] = await Promise.all([getExpenses(), getBudget()]);
+    await checkAndNotifyBudgetStatus(getMonthlyTotal(expenses), budget);
 
     setShowSuccess(true);
     setTimeout(() => router.back(), SUCCESS_DISPLAY_MS);

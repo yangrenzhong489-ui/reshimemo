@@ -5,8 +5,11 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ExpenseForm } from '@/components/expense-form';
 import { ScreenContainer } from '@/components/screen-container';
 import { ThemedText } from '@/components/themed-text';
-import { addExpense, type NewExpenseInput } from '@/services/expense-storage';
+import { getBudget } from '@/services/budget-storage';
+import { addExpense, getExpenses, type NewExpenseInput } from '@/services/expense-storage';
+import { checkAndNotifyBudgetStatus } from '@/services/notification-service';
 import { saveReceiptPhoto } from '@/services/receipt-photo-storage';
+import { getMonthlyTotal } from '@/utils/expense-summary';
 
 const SUCCESS_DISPLAY_MS = 700;
 
@@ -21,6 +24,9 @@ export default function AddExpenseScreen() {
     if (!saved) {
       throw new Error('保存に失敗しました。もう一度お試しください。');
     }
+
+    const [expenses, budget] = await Promise.all([getExpenses(), getBudget()]);
+    await checkAndNotifyBudgetStatus(getMonthlyTotal(expenses), budget);
 
     setShowSuccess(true);
     setTimeout(() => router.back(), SUCCESS_DISPLAY_MS);
